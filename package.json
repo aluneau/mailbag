@@ -1,0 +1,31 @@
+{
+  "name": "mailbag",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "mailparser": "^2.2.0",
+    "pg": "^7.12.1",
+    "pg-hstore": "^2.3.3",
+    "sequelize": "^5.16.0",
+    "smtp-server": "^3.4.6"
+  },
+  "devDependencies": {
+    "sequelize-auto-migrations": "^1.0.3",
+    "sequelize-cli": "^5.5.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bloudman/mailbag.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bloudman/mailbag/issues"
+  },
+  "homepage": "https://github.com/bloudman/mailbag#readme"
+}
