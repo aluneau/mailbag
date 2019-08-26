@@ -9,7 +9,29 @@ const Mails = require("./models/mails")
 const MailAliases = require("./models/mailaliases")
 
 function parseMessage (session, message_data){
+    return new Promise(async resolve =>  {
+        message = new Object();
+        message.id = session.id;
+        message.from = session.envelope.mailFrom.address;
+        message.rcpt = session.envelope.rcptTo.map(function(item){ return item.address });
+        message.data = message_data;
+        simpleParser(message_data, async (err, mail) => {
+            message.subject = mail.subject;
+            message.date = mail.date;
+            if (mail.html != false) {
+                message.html = mail.html;
+            } else {
+                message.html = mail.text;
+            }
+            console.log(session.envelope.rcptTo)
+            console.log(message.rcpt)
 
+            resolve(message)
+        })
+
+
+    });
+    
 }
 
 db.sequelize.sync({ force: true })
@@ -112,7 +134,8 @@ const server = new SMTPServer({
         stream.on("data", (data) => {
             message_data += data;
         });
-        stream.on('end', () => {
+
+        stream.on('end', async () => {
             let err;
             if (stream.sizeExceeded) {
                 err = new Error('Error: message exceeds fixed maximum message size 10 MB');
@@ -120,54 +143,34 @@ const server = new SMTPServer({
                 return callback(err);
             }
 
-            
-            message = new Object();
-            message.id = session.id;
-            message.from = session.envelope.mailFrom.address;
-            message.rcpt = session.envelope.rcptTo.map(function(item){ return item.address });
-            message.data = message_data;
-            simpleParser(message_data, async (err, mail) => {
-                message.subject = mail.subject;
-                message.date = mail.date;
-                if (mail.html != false) {
-                    message.html = mail.html;
-                } else {
-                    message.html = mail.text;
-                }
-                try{
-                    console.log(session.envelope.rcptTo)
-                    console.log(message.rcpt)
-                    mailAliases = await MailAliases.findAll({
-                        where : {
-                            mailAlias: {
-                                [db.Sequelize.Op.or]:message.rcpt
-                            }
+                        
+            try{
+                let message = await parseMessage(session, message_data);
+                mailAliases = await MailAliases.findAll({
+                    where : {
+                        mailAlias: {
+                            [db.Sequelize.Op.or]:message.rcpt
                         }
-                    })
-
-                    console.log(mailAliases)
-
-                    for (mailAlias of mailAliases){
-                        console.log(mailAlias.mailAliasId)
-                        await Mails.create({
-                            from: message.from,
-                            to: mailAlias.mailAlias,
-                            data: message.html,
-                            date: message.date,
-                            subject: message.subject,
-                            mailAliasId: mailAlias.mailAliasId
-                        })
                     }
-
-                    callback(null, 'Message queued as ' + message.id); // accept the message once the stream is ended
-
-                } catch (err) {
-                    console.log(err)
-                    err.responseCode = 550
-                    return callback(err)
+                })
+                for (mailAlias of mailAliases){
+                    console.log(mailAlias.mailAliasId)
+                    await Mails.create({
+                        from: message.from,
+                        to: mailAlias.mailAlias,
+                        data: message.html,
+                        date: message.date,
+                        subject: message.subject,
+                        mailAliasId: mailAlias.mailAliasId
+                    })
                 }
+                callback(null, 'Message queued as ' + message.id); // accept the message once the stream is ended
                 messages.push(message);
-            })
+            } catch (err) {
+                console.log(err)
+                err.responseCode = 550
+                return callback(err)
+            }
         });
     }
 });
